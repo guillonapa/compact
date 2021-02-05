@@ -2,5 +2,5 @@
 
 ## Languages and Tools
 
-- Optimizer: GoLang
-- Compressor: GoLang
+- Optimizer: Go.
+- Compressor: Go.
