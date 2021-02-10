@@ -1,3 +1,3 @@
-module github.com/guillonapa/compact.io
+module github.com/guillonapa/compact
 
 go 1.15
