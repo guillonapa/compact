@@ -1,3 +1,7 @@
+/*
+Package internal deals with common operations that are
+called from other packages.
+*/
 package internal
 
 import (
@@ -11,23 +15,33 @@ import (
 	"strings"
 )
 
-// ImageIr TODO
+// ImageIr is an internal representation for an image.
 type ImageIr struct {
 	width  int
 	height int
 	pixels [][][]uint32
 }
 
+// String returns the string representation for an internal
+// image representation.
 func (i ImageIr) String() string {
 	return fmt.Sprintf("[%v x %v]:\n%v\n", i.width, i.height, i.pixels)
 }
 
-// CompactImage TODO
+// CompactImage is an internal representation of a compressed
+// image.
 type CompactImage struct {
 	Dummy ImageIr
 }
 
-// Read TODO
+// Copy creates a copy of the interal image representation.
+func Copy(i ImageIr) ImageIr {
+	c := make([][][]uint32, len(i.pixels))
+	copy(c, i.pixels)
+	return ImageIr{i.width, i.height, c}
+}
+
+// Read reads an image into an internal image representation.
 func Read(i image.Image) ImageIr {
 	b := i.Bounds()
 	// get width and height
@@ -53,7 +67,7 @@ func Read(i image.Image) ImageIr {
 	return ImageIr{w, h, pixels}
 }
 
-// Draw TODO
+// Draw creates an image from an internal image representation.
 func Draw(i ImageIr) image.Image {
 	pixels := i.pixels
 	// create the image of the needed size
@@ -68,7 +82,8 @@ func Draw(i ImageIr) image.Image {
 	return res
 }
 
-// WriteCompactImage TODO
+// WriteCompactImage writes the compact image representation
+// to the file system at the given path.
 func WriteCompactImage(c CompactImage, path string) error {
 	bytes := []byte(scompact(c.Dummy.pixels))
 	err := ioutil.WriteFile(path, bytes, 0644)
@@ -78,7 +93,8 @@ func WriteCompactImage(c CompactImage, path string) error {
 	return nil
 }
 
-// scompact TODO
+// scompact creates a string representation of the pixel data.
+// This is NOT a good implementation for medium to large images.
 func scompact(pixels [][][]uint32) string {
 	var s string
 	for _, row := range pixels {
@@ -93,7 +109,8 @@ func scompact(pixels [][][]uint32) string {
 	return s
 }
 
-// WriteImage TODO
+// WriteImage writes an image to the file system at the
+// given path.
 func WriteImage(i image.Image, path string) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -109,7 +126,8 @@ func WriteImage(i image.Image, path string) error {
 	return nil
 }
 
-// ReadCompactImage TODO
+// ReadCompactImage reads a file and returns an internal representation
+// of a compact image.
 func ReadCompactImage(path string) (CompactImage, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
