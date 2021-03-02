@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -22,6 +23,41 @@ type ImageIr struct {
 	pixels [][][]uint32
 }
 
+// ImageIrReader is used to read pixels from the image.
+type ImageIrReader struct {
+	i ImageIr
+	x int
+	y int
+}
+
+// Read reads pixels into a slice. There's is no indication
+// of where a row ends or starts.
+func (r *ImageIrReader) Read(b [][]uint32) (int, error) {
+	read := 0
+	for read < len(b) {
+		// check if there's nothing to read
+		if r.x >= r.i.width {
+			return read, io.EOF
+		}
+		// read the pixel at (x, y)
+		p := r.i.pixels[r.x][r.y]
+		b[read] = p
+		read = read + 1
+		// update current position
+		if r.y == r.i.height-1 {
+			r.x = r.x + 1
+			r.y = 0
+		} else {
+			r.y = r.y + 1
+		}
+	}
+	// check if we are done reading the image
+	if r.x >= r.i.width {
+		return read, io.EOF
+	}
+	return read, nil
+}
+
 // String returns the string representation for an internal
 // image representation.
 func (i ImageIr) String() string {
@@ -32,6 +68,23 @@ func (i ImageIr) String() string {
 // image.
 type CompactImage struct {
 	Dummy ImageIr
+}
+
+// CompactImageReader is used to read pixels from the
+// internal representation for a compact image.
+type CompactImageReader struct {
+	imageReader ImageIrReader
+}
+
+// compactImageReader creates an instance of the reader.
+func compactImageReader(c CompactImage) CompactImageReader {
+	return CompactImageReader{imageReader: ImageIrReader{i: c.Dummy, x: 0, y: 0}}
+}
+
+// Read reads pixels into a slice. There's is no indication
+// of where a row ends or starts.
+func (r *CompactImageReader) Read(b [][]uint32) (int, error) {
+	return r.imageReader.Read(b)
 }
 
 // Copy creates a copy of the interal image representation.
@@ -85,28 +138,50 @@ func Draw(i ImageIr) image.Image {
 // WriteCompactImage writes the compact image representation
 // to the file system at the given path.
 func WriteCompactImage(c CompactImage, path string) error {
-	bytes := []byte(scompact(c.Dummy.pixels))
-	err := ioutil.WriteFile(path, bytes, 0644)
+	// open the file to write to
+	f, err := os.OpenFile(path,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
+	defer f.Close()
+
+	// truncate to size 0
+	err = f.Truncate(0)
+	if err != nil {
+		return err
+	}
+
+	// read rows of data as we attempt to write them
+	r := compactImageReader(c)
+	b := make([][]uint32, c.Dummy.height)
+	count := 0
+	for {
+		n, err := r.Read(b)
+		count += n
+		if _, writeErr := f.WriteString(scompact(b)); writeErr != nil {
+			return writeErr
+		}
+		if err == io.EOF {
+			break
+		}
+	}
+	fmt.Printf("[INFO]: Number of pixels read: %v\n", count)
 	return nil
 }
 
-// scompact creates a string representation of the pixel data.
-// This is NOT a good implementation for medium to large images.
-func scompact(pixels [][][]uint32) string {
-	var s string
-	for _, row := range pixels {
-		for i, p := range row {
-			if i != 0 {
-				s += ","
-			}
-			s += fmt.Sprintf("%v|%v|%v|%v", p[0], p[1], p[2], p[3])
+// scompact creates a string representation of the pixel data for a row.
+func scompact(pixels [][]uint32) string {
+	var sb strings.Builder
+	sb.Reset()
+	for i, p := range pixels {
+		if i != 0 {
+			sb.WriteString(",")
 		}
-		s += "\n"
+		sb.WriteString(fmt.Sprintf("%v|%v|%v|%v", p[0], p[1], p[2], p[3]))
 	}
-	return s
+	sb.WriteString("\n")
+	return sb.String()
 }
 
 // WriteImage writes an image to the file system at the
