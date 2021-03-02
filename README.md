@@ -19,3 +19,38 @@ An experimental API to optimize images that are used in web pages, mobile apps, 
 **Compression**
 
 The compression API is used to package image files into compressed versions of themselves. The compression is experimental, and a real-world advantage is unlikely when using instead of existing compression techniques.
+
+## Usage
+
+```go
+// read the image from the file system
+path := "earth.png"
+f, err := os.Open(path)
+if err != nil {
+	log.Fatal(err)
+}
+image, err := png.Decode(f)
+if err != nil {
+	log.Fatal(err)
+}
+
+// optimize it
+optimizedImage, err := compact.OptimizeAs(image, optimizer.WEB)
+if err != nil {
+	log.Fatal(err)
+}
+
+// compress it
+compressedPath := "earth.compact"
+err = compact.CompressAs(optimizedImage, compressor.SIMPLE, compressedPath)
+if err != nil {
+	log.Fatal(err)
+}
+
+// decompress it
+decompressedPath := "earth_decompressed.png"
+_, err = compact.Decompress(compressedPath, decompressedPath)
+if err != nil {
+	log.Fatal(err)
+}
+```
