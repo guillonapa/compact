@@ -155,18 +155,15 @@ func WriteCompactImage(c CompactImage, path string) error {
 	// read rows of data as we attempt to write them
 	r := compactImageReader(c)
 	b := make([][]uint32, c.Dummy.height)
-	count := 0
 	for {
-		n, err := r.Read(b)
-		count += n
-		if _, writeErr := f.WriteString(scompact(b)); writeErr != nil {
+		_, err := r.Read(b)
+		if _, writeErr := f.WriteString(fmt.Sprintf("%v\n", scompact(b))); writeErr != nil {
 			return writeErr
 		}
 		if err == io.EOF {
 			break
 		}
 	}
-	fmt.Printf("[INFO]: Number of pixels read: %v\n", count)
 	return nil
 }
 
@@ -180,7 +177,6 @@ func scompact(pixels [][]uint32) string {
 		}
 		sb.WriteString(fmt.Sprintf("%v|%v|%v|%v", p[0], p[1], p[2], p[3]))
 	}
-	sb.WriteString("\n")
 	return sb.String()
 }
 
